@@ -1,0 +1,3 @@
+# Runtime: Python 3.9+ standard library only. No PyPI packages are required.
+# Tkinter must be provided by the Python installation / operating system.
+# OpenSSH and a local HTTP/Mixed proxy are external system requirements.
