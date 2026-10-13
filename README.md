@@ -1,159 +1,171 @@
-# SSH 代理开关
+# SSH Proxy Switch
 
-服务器无法直接访问需要代理的网络时，通过 SSH 反向端口转发，把服务器上的代理端口连接到本地电脑的代理服务，让服务器经由本地代理访问网络。
+Let a remote server access the internet through a proxy running on your local computer. SSH reverse port forwarding connects a loopback port on the server to your local proxy service.
 
-流量路径：服务器上的 Git 等程序 → 服务器 `127.0.0.1:17890` → SSH 隧道 → 本地 `127.0.0.1:7897` 的 Clash 等代理 → 目标网络。
+Traffic flow: server application (Git, pip, etc.) → server `127.0.0.1:17890` → SSH tunnel → local proxy (such as Clash) at `127.0.0.1:7897` → destination.
 
-## 环境与依赖
+## Requirements
 
-| 位置 | 所需环境 |
+| Component | Requirements |
 | --- | --- |
-| 本地电脑 | Windows，OpenSSH 客户端，正在运行的 Clash 等代理 |
-| 本地源码启动 | Python 3.9+，带 Tkinter；没有第三方 Python 运行依赖 |
-| 本地 EXE 打包 | Python 3.9+、Tkinter、`requirements-build.txt` 中的 PyInstaller |
-| 服务器开关 | Linux，Bash 4.2+，可用的 `cp`、`mkdir`、`grep` 命令；不要求 Python |
-| 集成检查 | Python 3.9+、pip、Bash 4.2+、curl |
+| Local computer | Windows, an OpenSSH client, and a running proxy service such as Clash |
+| Running from source | Python 3.9+ with Tkinter; no third-party Python runtime packages |
+| Building the Windows EXE | Python 3.9+, Tkinter, and PyInstaller from `requirements-build.txt` |
+| Server switch | Linux, Bash 4.2+, and the `cp`, `mkdir`, and `grep` commands; Python is not required |
+| Integration tests | Python 3.9+, pip, Bash 4.2+, and curl |
 
-`requirements.txt` 说明运行依赖；无需执行 pip 安装即可启动源码。Tkinter 随 Python 安装提供，不通过 `pip install tkinter` 安装。本地可运行 `python -m tkinter` 检查 GUI 支持，运行 `ssh -V` 检查 SSH 客户端。
+`requirements.txt` documents runtime requirements. No pip installation is needed to run the source. Tkinter must be provided by your Python installation or operating system; do not install it with `pip install tkinter`. Run `python -m tkinter` to check GUI support and `ssh -V` to check the SSH client.
 
-服务器需要允许当前用户建立 SSH 反向端口转发，并且该用户能通过密钥或 ssh-agent 登录。无需 root 权限。
+The server must allow SSH reverse port forwarding for your account. Authentication uses an SSH key or ssh-agent. Root privileges are not required.
 
-## 双击启动
+## Launching on Windows
 
-- **EXE 方式**：双击 `dist/SSHProxySwitch.exe`。可以单独复制这个文件到其他 Windows 电脑使用，无需安装 Python。
-- **BAT 方式**：双击根目录的 `start.bat`。它优先打开已打包的 EXE；没有 EXE 时使用 Python 3.9+ 启动 `tools/ssh_proxy_switch.py`。源码方式需要带 Tkinter 的 Python，并保留 `tools` 目录。
+- **EXE:** Double-click `dist/SSHProxySwitch.exe`. You can copy it to a compatible Windows computer without installing Python.
+- **BAT:** Double-click `start.bat` in the project root. It prefers the packaged EXE when available; otherwise, it launches `tools/ssh_proxy_switch.py` using Python 3.9+. Running from source requires Tkinter and the `tools` directory.
 
-两种方式都需要 Windows OpenSSH 客户端（终端中的 `ssh` 命令）和本地正在运行的代理服务。EXE 不包含 SSH、Clash 或私钥。
+Both methods require the `ssh` command and a running local proxy. The EXE does not bundle SSH, Clash, or private keys.
 
-源码仓库不包含预先生成的 EXE；需先按下文打包，才会出现 `dist/SSHProxySwitch.exe`。也可以在项目根目录直接运行：
+The source repository does not include a prebuilt EXE. Follow the build instructions below to generate it, or launch directly from the project root:
 
 ```powershell
 python tools/ssh_proxy_switch.py
 ```
 
-## 使用步骤
+## Connecting the Tunnel
 
-1. 开启本地 Clash 等代理，确认实际 HTTP / Mixed 或 SOCKS5 端口。
-2. 首次连接时，先在本地终端执行 `ssh -p 22 用户名@服务器地址`，核对服务器指纹并确认可以通过密钥登录。私钥带口令时，需要先加载到 ssh-agent。
-3. 打开工具，填写服务器地址、SSH 端口、用户名、私钥路径和代理端口。私钥留空时使用 SSH 的默认身份文件或 ssh-agent。
-4. 点击“开启代理隧道”，等状态显示隧道已建立。
-5. 点击“复制服务器Git命令”，到服务器上的 Git 仓库目录执行，例如：
+The current application interface is in Chinese. The instructions below describe the controls by their function.
+
+1. Start your local proxy and identify its HTTP / Mixed or SOCKS5 port.
+2. Before the first connection, run `ssh -p 22 username@server-host` in a local terminal. Verify the server fingerprint and confirm key authentication works. Load passphrase-protected keys into ssh-agent first.
+3. Open the tool and enter the server address, SSH port, username, private key path, and proxy port. Leave the key field empty to use SSH's default identity files or ssh-agent.
+4. Click the button to start the proxy tunnel and wait for confirmation that forwarding has been established.
+5. Click the button to copy the server Git command, then run it in a Git repository **on the server**, for example:
 
    ```sh
    git -c http.proxy=http://127.0.0.1:17890 pull --ff-only
    ```
 
-   使用 SOCKS5 时，工具会生成 `socks5h://127.0.0.1:17890`。其他支持代理的程序也可以使用相应地址；本工具不会自动让服务器所有流量走代理，也不会修改全局 Git 配置。
+For SOCKS5, the tool generates `socks5h://127.0.0.1:17890`. Other applications that support proxies can use the corresponding address. The tool does not route all server traffic automatically or modify global Git configuration.
 
-配置保存在 `%LOCALAPPDATA%\MRProxySwitch\config.json`，只记录连接参数和私钥路径，不保存私钥内容或密码。BAT 和 EXE 共用这份配置。
+Configuration is saved to `%LOCALAPPDATA%\MRProxySwitch\config.json`. It contains connection settings and the private key path, but no private key contents or passwords. BAT and EXE launches share this configuration.
 
-请保持本地代理、工具窗口和电脑网络正常。关闭窗口会停止隧道；断网或休眠后需重新开启。服务器需允许 SSH 反向端口转发，所选远端端口不能被占用。隧道建立只说明转发成功，目标网站是否可达取决于本地代理。
+Keep your local proxy, application window, and network connection active. Closing the window stops the tunnel. Restart it after sleep or a network interruption. The selected server forwarding port must be available. An established tunnel confirms forwarding, but destination access still depends on your local proxy.
 
-## 服务器端开关（Linux / Bash）
+## Server Switch (Linux / Bash)
 
-将根目录的 `server_proxy.sh` 上传到服务器，例如放在 `~/server_proxy.sh`。在服务器 Bash 4.2+ 终端中运行：
+Upload `server_proxy.sh` to the server, for example as `~/server_proxy.sh`. In a Bash 4.2+ terminal on the server, run:
 
 ```bash
 source ~/server_proxy.sh
 ```
 
-选择 `1` 开启、`0` 关闭、`s` 查看状态。开启后直接运行正常命令：
+Select `1` to enable, `0` to disable, or `s` to check status. Once enabled, run commands normally:
 
 ```bash
-pip install 包名
-curl https://目标网站
-wget https://目标网站/文件
+pip install package-name
+curl https://example.com
+wget https://example.com/file
 git pull
 ```
 
-如果使用 Conda，可以先激活环境再开启代理：
+If you use Conda, activate your environment before enabling the proxy:
 
 ```bash
-conda activate 你的环境名
+conda activate your-environment
 source ~/server_proxy.sh on
-pip install 包名
+pip install package-name
 ```
 
-`server_proxy.sh` 是设置代理环境变量的脚本，不是 Python/Conda 环境。开关返回后即可在同一终端运行程序。
+`server_proxy.sh` sets proxy environment variables; it is not a Python or Conda environment. After the switch returns, run applications in the same terminal.
 
-也可以使用快捷开关：
+You can also use the switch directly:
 
 ```bash
 source ~/server_proxy.sh on
 source ~/server_proxy.sh off
 ```
 
-默认使用 `http://127.0.0.1:17890`，与本地工具的默认服务器转发端口一致。本地请选择 **HTTP / Mixed** 端口；服务器开关统一使用 HTTP 代理，以兼容 pip 和 wget，HTTPS 网站也通过该 HTTP 代理访问。如果改了转发端口，只需在服务器端关闭代理后配置一次：
+The default address is `http://127.0.0.1:17890`, matching the local tool's default server forwarding port. Select an **HTTP / Mixed** proxy port in the local tool when using the server switch. It uses an HTTP proxy for compatibility with pip and wget; HTTPS destinations also use this HTTP proxy. If you change the forwarding port, disable the server proxy and configure its port once:
 
 ```bash
 source ~/server_proxy.sh configure 18000
 ```
 
-开关设置当前终端的大小写 HTTP/HTTPS/ALL 代理变量和 `PIP_PROXY`，绕过 localhost、127.0.0.1、::1；关闭时恢复当前终端开启前的值和导出状态。首次开启会在 `~/.bashrc` 中追加加载入口，并把脚本及开关状态保存到 `~/.config/ssh-proxy-switch/`，新开的 Bash 终端会读取开关状态。已有的其他终端和运行中的进程不会自动更新，在需要使用的终端中各自加载开关即可。登录 Bash 需由其已有的 `~/.bash_profile` 或 `~/.profile` 加载 `~/.bashrc`。
+The switch sets lowercase and uppercase HTTP, HTTPS, and ALL proxy variables, plus `PIP_PROXY`, in the current terminal. It bypasses the proxy for `localhost`, `127.0.0.1`, and `::1`. Disabling it restores the original values and export attributes in that terminal.
 
-查看当前终端及新终端的开关状态：
+The first enable operation adds a loader to `~/.bashrc` and stores the script and switch state in `~/.config/ssh-proxy-switch/`. New Bash terminals read the saved state. Other existing terminals and running processes do not update automatically; load the switch separately in each terminal where needed. Login shells must load `~/.bashrc` through their existing `~/.bash_profile` or `~/.profile`.
+
+Check the state of the current terminal and future terminals:
 
 ```bash
 source ~/server_proxy.sh status
 ```
 
-如需卸载服务器开关，先在使用它的终端执行 `off`，然后从 `~/.bashrc` 删除 `# SSH Proxy Switch (managed loader)` 及其紧随的加载行，再删除 `~/.config/ssh-proxy-switch/`。保留 `.bashrc` 中其他配置。
+To uninstall, first run `off` in terminals using the switch. Remove the `# SSH Proxy Switch (managed loader)` line and the loader line immediately following it from `~/.bashrc`, then delete `~/.config/ssh-proxy-switch/`. Preserve the rest of your Bash configuration.
 
-必须用 `source`，`bash server_proxy.sh` 无法修改父终端。此功能适用于支持代理环境变量的程序；sudo、系统服务、容器和 Git 的 SSH 地址不在其覆盖范围内。已有的 Git 显式代理配置或工具的命令行参数可能覆盖环境变量；如果曾配置其他代理，请先检查对应配置。本工具不修改全局 Git 配置或 pip 配置文件。
+Use `source`: running `bash server_proxy.sh` cannot change the parent terminal's environment. The switch applies to applications that honor proxy environment variables. It does not configure sudo, system services, containers, or Git SSH URLs. Explicit Git proxy settings or application command-line options may override environment variables; check existing proxy configuration if necessary. The tool does not modify global Git or pip configuration files.
 
-代理环境变量的支持见 [pip 使用文档](https://pip.pypa.io/en/stable/user_guide/#using-a-proxy-server)、[curl 环境变量文档](https://curl.se/libcurl/c/libcurl-env.html) 和 [Wget 文档](https://www.gnu.org/software/wget/manual/wget.html#Proxies)。
+For proxy environment variable support, see the [pip documentation](https://pip.pypa.io/en/stable/user_guide/#using-a-proxy-server), [curl documentation](https://curl.se/libcurl/c/libcurl-env.html), and [Wget documentation](https://www.gnu.org/software/wget/manual/wget.html#Proxies).
 
-开发时可运行 `python -B tests/test_server_proxy.py` 验证开关、环境恢复和代理请求。测试需要 Bash、curl 和 pip，使用项目内的临时用户目录及本机模拟代理，不修改真实用户配置。
+## Integration Tests
 
-## 重新打包 EXE
+Run from the project root:
 
-在 Windows 上准备带 Tkinter 的 Python 和 PyInstaller：
+```bash
+python -B tests/test_server_proxy.py
+```
+
+The tests cover switching, environment restoration, and proxy requests. They require Bash, curl, and pip, and use temporary user directories inside the project and a local mock proxy. They do not modify your real user configuration.
+
+## Building the Windows EXE
+
+On Windows, use Python with Tkinter and install the build dependencies:
 
 ```powershell
 py -3 -m pip install -r requirements-build.txt
 ```
 
-双击 `build_exe.bat`，成功后输出 `dist/SSHProxySwitch.exe`。如果使用 `python` 命令管理环境，也可以运行：
+Double-click `build_exe.bat`. A successful build produces `dist/SSHProxySwitch.exe`. If you manage your environment with the `python` command, you can also run:
 
 ```powershell
 python -m pip install -r requirements-build.txt
 python tools/build_exe.py
 ```
 
-打包使用当前解释器的架构；分发给其他电脑时，应使用兼容的 Windows 系统和架构。打包中间产物放在临时目录，结束后自动清理，实际分发只需 EXE。
+The build uses the current Python interpreter's architecture. Distribute it to a compatible Windows system and architecture. Intermediate files are stored in a temporary directory and cleaned up when the build finishes. Distribute the EXE together with the license notices described below.
 
-## 常见问题
+## Troubleshooting
 
-| 现象 | 排查方式 |
+| Issue | What to check |
 | --- | --- |
-| 找不到 SSH | 安装 Windows OpenSSH 客户端，确认 `ssh -V` 可用后重新打开工具 |
-| `Host key verification failed` | 用同一服务器地址和端口在本地终端登录，核对指纹后再开启；工具不会自动接受未知主机 |
-| `Permission denied` | 检查用户名、私钥和服务器授权；带口令私钥需先加载到 ssh-agent |
-| 转发失败 | 检查服务器是否允许反向转发、所选转发端口是否被占用 |
-| 隧道建立但 pip 无法联网 | 检查本地代理是否正常、本地是否选 HTTP / Mixed、两端的转发端口是否一致 |
-| `bash server_proxy.sh` 没生效 | 在目标 Bash 终端使用 `source server_proxy.sh on` |
-| 新终端没自动启用 | 检查终端是否为 Bash，以及登录配置是否加载 `.bashrc` |
-| Git 仍走其他代理 | 检查已有的 Git 显式代理配置；服务器开关适用于 HTTP/HTTPS 仓库，SSH 仓库需另行配置 |
+| SSH not found | Install the Windows OpenSSH client, verify `ssh -V`, and reopen the tool |
+| `Host key verification failed` | Log in locally with the same server address and port and verify the fingerprint; the tool does not automatically accept unknown hosts |
+| `Permission denied` | Check the username, private key, and server authorization; load passphrase-protected keys into ssh-agent |
+| Forwarding fails | Check server permissions for reverse forwarding and whether the forwarding port is occupied |
+| Tunnel established but pip cannot connect | Check the local proxy, select HTTP / Mixed, and ensure both sides use the same forwarding port |
+| `bash server_proxy.sh` has no effect | Use `source server_proxy.sh on` in the target Bash terminal |
+| New terminals do not enable the proxy | Check that the shell is Bash and its login configuration loads `.bashrc` |
+| Git still uses another proxy | Check explicit Git proxy settings; the switch supports HTTP/HTTPS repositories, while SSH repositories need separate configuration |
 
-## 文件结构
+## Project Structure
 
 ```text
-tools/ssh_proxy_switch.py   本地 GUI 与 SSH 隧道管理
-tools/build_exe.py          Windows EXE 打包入口
-start.bat                  Windows 双击启动
-build_exe.bat              Windows 双击打包
-server_proxy.sh            服务器端代理环境开关
-tests/test_server_proxy.py  隔离环境与本机代理集成检查
-requirements.txt           运行依赖说明
-requirements-build.txt     可选打包依赖
+tools/ssh_proxy_switch.py   Local GUI and SSH tunnel management
+tools/build_exe.py          Windows EXE build entry point
+start.bat                  Windows launcher
+build_exe.bat              Windows build launcher
+server_proxy.sh            Server proxy environment switch
+tests/test_server_proxy.py  Isolated environment and local proxy tests
+requirements.txt           Runtime dependency notes
+requirements-build.txt     Optional build dependencies
 ```
 
-## 开源文件
+## Publishing the Source
 
-源码不预填个人用户名、服务器地址或私钥路径。个人配置保存在项目目录之外，无需随源码上传。`.gitignore` 排除了打包产物、Python 缓存、配置文件和常见私钥文件。
+The source does not prefill personal usernames, server addresses, or private key paths. Personal configuration is stored outside the project directory and is not needed for publication. `.gitignore` excludes build artifacts, Python caches, configuration files, and common private key files.
 
-可以提交上述源码、依赖说明、README、LICENSE、`.gitignore` 和 `.gitattributes`。本地保存的连接配置、SSH 私钥及运行日志不随源码发布；发布前检查自行添加的文件。忽略规则不会取消已被 Git 跟踪的文件，已有仓库可用 `git ls-files` 查看实际跟踪内容。
+Commit the source files, dependency files, README, LICENSE, `.gitignore`, and `.gitattributes`. Keep saved connection settings, SSH private keys, and runtime logs out of the published source, and review any files you add yourself. Ignore rules do not untrack files already tracked; use `git ls-files` to inspect tracked files in an existing repository.
 
-## 许可证
+## License
 
-本项目采用 [MIT License](LICENSE)，版权署名为 `SSH Proxy Switch contributors`。分发本项目源码或其 EXE 时，请一并保留 LICENSE 文件。打包所包含的第三方组件仍适用各自的许可证。
+This project is licensed under the [MIT License](LICENSE), with the copyright attribution `SSH Proxy Switch contributors`. Include the LICENSE file when distributing the source or its EXE. Third-party components included in a packaged application remain subject to their own licenses.
